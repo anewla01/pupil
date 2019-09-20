@@ -260,6 +260,31 @@ def service(
                 for plugin in g_pool.plugins:
                     plugin.recent_events(events=events)
 
+                # NOTE(anewla): going to be judicious about what data we are sending over the
+                # ipc to keep things light weight. we should be able to send any events
+                # but i'm still gaining familiarity with the event sys
+                # send new events to ipc: see world.py for more info
+                # if "frame" in events:
+                #     del events["frame"]  # send explicitly with frame publisher
+                # if "depth_frame" in events:
+                #     del events["depth_frame"]
+                # if "audio_packets" in events:
+                #     del events["audio_packets"]
+                # if "dt" in events:
+                #     events["dt"]  # no need to send this
+
+                allowed_events = {}
+                allow_list = ["blinks"]
+                for allowed_topic in allow_list:
+                    if (events.get(allowed_topic) is not None and 
+                       len(events.get(allowed_topic)) != 0):
+                        allowed_events.update({allowed_topic: events[allowed_topic]})
+
+                for data in allowed_events.values():
+                    assert isinstance(data, (list, tuple))
+                    for d in data:
+                        ipc_pub.send(d)
+
             if notify_sub.socket in socks:
                 topic, n = notify_sub.recv()
                 handle_notifications(n)
